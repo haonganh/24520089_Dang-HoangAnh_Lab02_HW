@@ -3,6 +3,8 @@ import { useId, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { DataGridProps } from "./data-grid-contract";
 
+const PAGE_SIZE = 10;
+
 export default function DataGrid<T>({
   data,
   columns,
@@ -15,13 +17,16 @@ export default function DataGrid<T>({
   // Search state
   const [search, setSearch] = useState("");
 
-  // Keyboard navigation state
+  // Pagination state
+  const [pageIndex, setPageIndex] = useState(0);
+
+  // Keyboard navigation
   const [active, setActive] = useState({
     row: 0,
     col: 0,
   });
 
-  // Selected rows
+  // Row selection
   const [selectedRows, setSelectedRows] = useState<T[]>([]);
 
   // Cell references
@@ -43,9 +48,12 @@ export default function DataGrid<T>({
           ? "descending"
           : "ascending",
     }));
+
+    setPageIndex(0);
+    setActive({ row: 0, col: 0 });
   };
 
-  // Filter first, then sort
+  // Filter and sort
   const processedRows = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
 
@@ -54,13 +62,11 @@ export default function DataGrid<T>({
       .filter(({ item }) => {
         if (!query) return true;
 
-        return columns.some((column) => {
-          const value = item[column.accessorKey];
-
-          return String(value ?? "")
+        return columns.some((column) =>
+          String(item[column.accessorKey] ?? "")
             .toLocaleLowerCase()
-            .includes(query);
-        });
+            .includes(query)
+        );
       });
 
     if (!sortConfig) return rows;
@@ -104,27 +110,64 @@ export default function DataGrid<T>({
     });
   }, [data, columns, search, sortConfig]);
 
-  // Ensure keyboard tab stop remains valid after filtering
-  const activeRow = Math.min(
-    active.row,
-    Math.max(0, processedRows.length - 1)
+  // Pagination calculations
+  const totalRecords = processedRows.length;
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalRecords / PAGE_SIZE)
   );
 
-  const activeCol = Math.min(
-    active.col,
-    Math.max(0, columns.length - 1)
+  const currentPage = Math.min(
+    pageIndex,
+    totalPages - 1
   );
+
+  const startIndex = currentPage * PAGE_SIZE;
+
+  const endIndex = Math.min(
+    startIndex + PAGE_SIZE,
+    totalRecords
+  );
+
+  const paginatedRows = processedRows.slice(
+    startIndex,
+    endIndex
+  );
+
+  const firstRecord =
+    totalRecords === 0 ? 0 : startIndex + 1;
+
+  // Change page
+  const changePage = (newPage: number) => {
+    if (
+      newPage < 0 ||
+      newPage >= totalPages ||
+      newPage === currentPage
+    ) {
+      return;
+    }
+
+    setPageIndex(newPage);
+    setActive({ row: 0, col: 0 });
+  };
+
+  // Handle filtering
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPageIndex(0);
+    setActive({ row: 0, col: 0 });
+  };
 
   // Select row
   const selectRow = (item: T) => {
     if (selectedRows.includes(item)) return;
 
     setSelectedRows((previous) => [...previous, item]);
-
     onRowSelect?.(item);
   };
 
-  // Toggle selection
+  // Toggle row selection
   const toggleRow = (item: T) => {
     const isSelected = selectedRows.includes(item);
 
@@ -155,7 +198,7 @@ export default function DataGrid<T>({
       case "ArrowDown":
         nextRow = Math.min(
           rowIndex + 1,
-          processedRows.length - 1
+          paginatedRows.length - 1
         );
         break;
 
@@ -198,10 +241,20 @@ export default function DataGrid<T>({
     cellRefs.current[nextRow]?.[nextCol]?.focus();
   };
 
-  // Empty column state
+  // Empty columns
   if (columns.length === 0) {
     return <p role="status">No columns configured.</p>;
   }
+
+  const activeRow = Math.min(
+    active.row,
+    Math.max(0, paginatedRows.length - 1)
+  );
+
+  const activeCol = Math.min(
+    active.col,
+    columns.length - 1
+  );
 
   return (
     <section aria-label={ariaLabel}>
@@ -216,16 +269,16 @@ export default function DataGrid<T>({
             id={searchId}
             type="search"
             value={search}
-            placeholder="Search by name, department, ID..."
+            placeholder="Search employees..."
             onChange={(event) =>
-              setSearch(event.target.value)
+              handleSearch(event.target.value)
             }
           />
 
           <button
             type="button"
             className="clear-button"
-            onClick={() => setSearch("")}
+            onClick={() => handleSearch("")}
             disabled={search.length === 0}
           >
             Clear
@@ -233,20 +286,27 @@ export default function DataGrid<T>({
         </div>
       </div>
 
-      {/* Results and selection status */}
+      {/* Grid status */}
       <p className="grid-status" role="status">
-        Showing {processedRows.length} of {data.length} records.
+        Showing {firstRecord}–{endIndex} of{" "}
+        {totalRecords} records.
         {" "}
         {selectedRows.length} rows selected.
+        {" "}
+        Page {currentPage + 1} of {totalPages}.
       </p>
 
       {/* Keyboard instructions */}
-      <p id={instructionsId} className="grid-instructions">
+      <p
+        id={instructionsId}
+        className="grid-instructions"
+      >
         Use arrow keys to navigate cells.
         Press Enter to select a row.
         Press Space to toggle row selection.
       </p>
 
+      {/* Data Grid */}
       <div className="table-container">
         <table
           role="grid"
@@ -304,7 +364,7 @@ export default function DataGrid<T>({
           </thead>
 
           <tbody>
-            {processedRows.length === 0 ? (
+            {paginatedRows.length === 0 ? (
               <tr role="row">
                 <td
                   role="gridcell"
@@ -317,7 +377,7 @@ export default function DataGrid<T>({
                 </td>
               </tr>
             ) : (
-              processedRows.map(
+              paginatedRows.map(
                 ({ item: row, index: originalIndex }, rowIndex) => {
                   const isSelected =
                     selectedRows.includes(row);
@@ -384,6 +444,54 @@ export default function DataGrid<T>({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination controls */}
+      <nav
+        className="pagination"
+        aria-label="Grid pagination"
+      >
+        <button
+          type="button"
+          className="pagination-button"
+          aria-disabled={currentPage === 0}
+          onClick={() => changePage(currentPage - 1)}
+        >
+          ← Previous
+        </button>
+
+        <div className="page-numbers">
+          {Array.from(
+            { length: totalPages },
+            (_, index) => (
+              <button
+                key={index}
+                type="button"
+                className="pagination-button"
+                aria-label={`Go to page ${index + 1}`}
+                aria-current={
+                  currentPage === index
+                    ? "page"
+                    : undefined
+                }
+                onClick={() => changePage(index)}
+              >
+                {index + 1}
+              </button>
+            )
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="pagination-button"
+          aria-disabled={
+            currentPage === totalPages - 1
+          }
+          onClick={() => changePage(currentPage + 1)}
+        >
+          Next →
+        </button>
+      </nav>
     </section>
   );
 }

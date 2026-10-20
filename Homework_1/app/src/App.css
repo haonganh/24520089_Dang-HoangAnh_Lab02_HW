@@ -10,13 +10,82 @@ h1 {
   color: #172554;
 }
 
-/* Table container */
+/* Search toolbar */
+.grid-toolbar {
+  margin: 24px 0 16px;
+}
+
+.search-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.search-group label {
+  font-weight: 600;
+  color: #172554;
+}
+
+.search-group input {
+  min-height: 44px;
+  min-width: 240px;
+  max-width: 100%;
+  flex: 1;
+  padding: 10px 12px;
+  font: inherit;
+  color: #0f172a;
+  background: white;
+  border: 2px solid #64748b;
+  border-radius: 6px;
+}
+
+.search-group input:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 2px;
+}
+
+/* Clear button */
+.clear-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  background: #1e3a8a;
+  color: white;
+  border: 2px solid #1e3a8a;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.clear-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.clear-button:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 3px;
+}
+
+/* Status */
+.grid-status {
+  margin: 12px 0;
+  font-weight: 600;
+  color: #172554;
+}
+
+/* Instructions */
+.grid-instructions {
+  margin-bottom: 16px;
+  color: #334155;
+}
+
+/* Table */
 .table-container {
   width: 100%;
   overflow-x: auto;
 }
 
-/* Table */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -30,51 +99,23 @@ td {
   text-align: left;
 }
 
-/* Table header */
 th {
   background: #1e3a8a;
   color: white;
 }
 
-/* Alternating rows */
 tbody tr:nth-child(even) {
   background: #f1f5f9;
 }
 
-/* Row hover */
 tbody tr:hover {
   background: #dbeafe;
 }
 
-/* Keyboard focus */
-td[role="gridcell"]:focus-visible {
-  outline: 3px solid #b45309;
-  outline-offset: -3px;
-  background-color: #fef3c7;
-}
-
-/* Selected row */
-tr[aria-selected="true"] td {
-  background-color: #dcfce7;
-}
-
-/* Selection label */
-.selected-label {
-  display: inline-block;
-  margin-left: 8px;
-  font-weight: bold;
-  color: #14532d;
-  text-decoration: underline;
-}
-
-/* Mouse interaction */
-td[role="gridcell"] {
-  cursor: pointer;
-}
-
-/* Sorting button */
+/* Sorting */
 .sort-button {
   width: 100%;
+  min-height: 36px;
   padding: 4px;
   border: none;
   background: transparent;
@@ -85,16 +126,99 @@ td[role="gridcell"] {
   cursor: pointer;
 }
 
-/* Sorting hover */
 .sort-button:hover {
   text-decoration: underline;
 }
 
-/* Sorting keyboard focus */
 .sort-button:focus-visible {
   outline: 3px solid #facc15;
+  outline-offset: 2px;
+}
+
+/* Keyboard focus */
+td[role="gridcell"]:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: -3px;
+  background: #fef3c7;
+}
+
+/* Selected rows */
+tr[aria-selected="true"] td {
+  background: #dcfce7;
+}
+
+tr[aria-selected="true"] td:focus-visible {
+  outline: 3px solid #854d0e;
+  outline-offset: -3px;
+}
+
+.selected-label {
+  display: inline-block;
+  margin-left: 8px;
+  font-weight: bold;
+  color: #14532d;
+  text-decoration: underline;
+}
+
+td[role="gridcell"] {
+  cursor: pointer;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #334155;
+  font-weight: 600;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 0;
+}
+
+.page-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pagination-button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 2px solid #1e3a8a;
+  border-radius: 6px;
+  background: white;
+  color: #1e3a8a;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pagination-button:hover:not([aria-disabled="true"]) {
+  background: #dbeafe;
+}
+
+.pagination-button[aria-current="page"] {
+  background: #1e3a8a;
+  color: white;
+}
+
+.pagination-button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pagination-button:focus-visible {
+  outline: 3px solid #b45309;
   outline-offset: 3px;
-  border-radius: 3px;
 }
 
 /* Responsive layout */
@@ -103,8 +227,22 @@ td[role="gridcell"] {
     padding: 12px;
   }
 
+  .search-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-group input {
+    width: 100%;
+    min-width: 0;
+  }
+
   th,
   td {
     padding: 10px;
+  }
+
+  .pagination {
+    gap: 8px;
   }
 }
