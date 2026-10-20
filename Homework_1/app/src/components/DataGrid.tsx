@@ -1,9 +1,13 @@
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { DataGridProps } from "./data-grid-contract";
 
 const PAGE_SIZE = 10;
+
+type ActiveCell<T> =
+  | { type: "header"; col: number }
+  | { type: "body"; item: T; col: number };
 
 export default function DataGrid<T>({
   data,
@@ -11,63 +15,42 @@ export default function DataGrid<T>({
   ariaLabel,
   onRowSelect,
 }: DataGridProps<T>) {
-  const instructionsId = useId();
   const searchId = useId();
+  const instructionsId = useId();
 
-  // Search state
   const [search, setSearch] = useState("");
-
-  // Pagination state
   const [pageIndex, setPageIndex] = useState(0);
 
-  // Keyboard navigation
-  const [active, setActive] = useState({
-    row: 0,
+  const [active, setActive] = useState<ActiveCell<T>>({
+    type: "header",
     col: 0,
   });
 
-  // Row selection
   const [selectedRows, setSelectedRows] = useState<T[]>([]);
 
-  // Cell references
-  const cellRefs = useRef<(HTMLTableCellElement | null)[][]>([]);
-
-  // Sorting state
   const [sortConfig, setSortConfig] = useState<{
     key: keyof T;
     direction: "ascending" | "descending";
   } | null>(null);
 
-  // Handle sorting
-  const handleSort = (key: keyof T) => {
-    setSortConfig((previous) => ({
-      key,
-      direction:
-        previous?.key === key &&
-        previous.direction === "ascending"
-          ? "descending"
-          : "ascending",
-    }));
+  const headerRefs = useRef<(HTMLElement | null)[]>([]);
+  const cellRefs = useRef<(HTMLTableCellElement | null)[][]>([]);
+  const gridHasFocus = useRef(false);
 
-    setPageIndex(0);
-    setActive({ row: 0, col: 0 });
-  };
-
-  // Filter and sort
+  // 1. Filter and sort records
   const processedRows = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
 
     const rows = data
       .map((item, index) => ({ item, index }))
-      .filter(({ item }) => {
-        if (!query) return true;
-
-        return columns.some((column) =>
+      .filter(({ item }) =>
+        !query ||
+        columns.some((column) =>
           String(item[column.accessorKey] ?? "")
             .toLocaleLowerCase()
             .includes(query)
-        );
-      });
+        )
+      );
 
     if (!sortConfig) return rows;
 
@@ -82,27 +65,17 @@ export default function DataGrid<T>({
       if (aValue == null) return 1;
       if (bValue == null) return -1;
 
-      let result: number;
-
-      if (
+      const result =
         typeof aValue === "number" &&
         typeof bValue === "number"
-      ) {
-        result = aValue - bValue;
-      } else {
-        result = String(aValue).localeCompare(
-          String(bValue),
-          "en",
-          {
-            numeric: true,
-            sensitivity: "base",
-          }
-        );
-      }
+          ? aValue - bValue
+          : String(aValue).localeCompare(
+              String(bValue),
+              "en",
+              { numeric: true, sensitivity: "base" }
+            );
 
-      if (result === 0) {
-        return a.index - b.index;
-      }
+      if (result === 0) return a.index - b.index;
 
       return sortConfig.direction === "ascending"
         ? result
@@ -110,80 +83,147 @@ export default function DataGrid<T>({
     });
   }, [data, columns, search, sortConfig]);
 
-  // Pagination calculations
+  // 2. Pagination
   const totalRecords = processedRows.length;
-
   const totalPages = Math.max(
     1,
     Math.ceil(totalRecords / PAGE_SIZE)
   );
 
-  const currentPage = Math.min(
-    pageIndex,
-    totalPages - 1
-  );
-
+  const currentPage = Math.min(pageIndex, totalPages - 1);
   const startIndex = currentPage * PAGE_SIZE;
-
   const endIndex = Math.min(
     startIndex + PAGE_SIZE,
     totalRecords
   );
 
-  const paginatedRows = processedRows.slice(
-    startIndex,
-    endIndex
+  const pageRows = processedRows.slice(startIndex, endIndex);
+  const firstRecord = totalRecords === 0 ? 0 : startIndex + 1;
+
+  // Ignore stale selections when incoming data changes
+  const validSelectedRows = selectedRows.filter((item) =>
+    data.includes(item)
   );
 
-  const firstRecord =
-    totalRecords === 0 ? 0 : startIndex + 1;
+  const activeRowIndex =
+    active.type === "body"
+      ? pageRows.findIndex(({ item }) => item === active.item)
+      : -1;
 
-  // Change page
-  const changePage = (newPage: number) => {
+  const activeColumn = Math.min(
+    active.col,
+    Math.max(0, columns.length - 1)
+  );
+
+  const headerIsActive =
+    active.type === "header" || activeRowIndex === -1;
+
+  // Restore focus if the active row disappears
+  useLayoutEffect(() => {
     if (
-      newPage < 0 ||
-      newPage >= totalPages ||
-      newPage === currentPage
+      active.type === "body" &&
+      activeRowIndex === -1 &&
+      gridHasFocus.current
+    ) {
+      headerRefs.current[activeColumn]?.focus();
+    }
+  }, [active, activeRowIndex, activeColumn]);
+
+  // 3. Sorting
+  const handleSort = (key: keyof T, col: number) => {
+    setSortConfig((previous) => ({
+      key,
+      direction:
+        previous?.key === key &&
+        previous.direction === "ascending"
+          ? "descending"
+          : "ascending",
+    }));
+
+    setPageIndex(0);
+    setActive({ type: "header", col });
+  };
+
+  // 4. Filtering
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPageIndex(0);
+    setActive({ type: "header", col: 0 });
+  };
+
+  // 5. Pagination
+  const changePage = (page: number) => {
+    if (
+      page < 0 ||
+      page >= totalPages ||
+      page === currentPage
     ) {
       return;
     }
 
-    setPageIndex(newPage);
-    setActive({ row: 0, col: 0 });
+    setPageIndex(page);
+    setActive({ type: "header", col: 0 });
   };
 
-  // Handle filtering
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setPageIndex(0);
-    setActive({ row: 0, col: 0 });
-  };
-
-  // Select row
+  // 6. Select row with Enter
   const selectRow = (item: T) => {
-    if (selectedRows.includes(item)) return;
+    if (validSelectedRows.includes(item)) return;
 
-    setSelectedRows((previous) => [...previous, item]);
+    setSelectedRows([...validSelectedRows, item]);
     onRowSelect?.(item);
   };
 
-  // Toggle row selection
+  // 7. Toggle selection with Space
   const toggleRow = (item: T) => {
-    const isSelected = selectedRows.includes(item);
+    const isSelected = validSelectedRows.includes(item);
 
-    setSelectedRows((previous) =>
+    setSelectedRows(
       isSelected
-        ? previous.filter((row) => row !== item)
-        : [...previous, item]
+        ? validSelectedRows.filter((row) => row !== item)
+        : [...validSelectedRows, item]
     );
 
-    if (!isSelected) {
-      onRowSelect?.(item);
+    if (!isSelected) onRowSelect?.(item);
+  };
+
+  // 8. Focus helpers
+  const focusHeader = (col: number) => {
+    headerRefs.current[col]?.focus();
+  };
+
+  const focusCell = (row: number, col: number) => {
+    cellRefs.current[row]?.[col]?.focus();
+  };
+
+  // 9. Header keyboard navigation
+  const handleHeaderKeyDown = (
+    event: KeyboardEvent<HTMLElement>,
+    col: number
+  ) => {
+    switch (event.key) {
+      case "ArrowRight":
+        event.preventDefault();
+        focusHeader(Math.min(col + 1, columns.length - 1));
+        break;
+
+      case "ArrowLeft":
+        event.preventDefault();
+        focusHeader(Math.max(col - 1, 0));
+        break;
+
+      case "ArrowDown":
+        event.preventDefault();
+        if (pageRows.length > 0) focusCell(0, col);
+        break;
+
+      case "ArrowUp":
+        event.preventDefault();
+        break;
     }
   };
 
-  // Keyboard navigation
-  const handleKeyDown = (
+  // 10. Body keyboard navigation
+  const handleCellKeyDown = (
     event: KeyboardEvent<HTMLTableCellElement>,
     rowIndex: number,
     colIndex: number,
@@ -191,79 +231,60 @@ export default function DataGrid<T>({
   ) => {
     if (event.target !== event.currentTarget) return;
 
-    let nextRow = rowIndex;
-    let nextCol = colIndex;
-
     switch (event.key) {
       case "ArrowDown":
-        nextRow = Math.min(
-          rowIndex + 1,
-          paginatedRows.length - 1
+        event.preventDefault();
+        focusCell(
+          Math.min(rowIndex + 1, pageRows.length - 1),
+          colIndex
         );
         break;
 
       case "ArrowUp":
-        nextRow = Math.max(rowIndex - 1, 0);
+        event.preventDefault();
+
+        if (rowIndex === 0) {
+          focusHeader(colIndex);
+        } else {
+          focusCell(rowIndex - 1, colIndex);
+        }
         break;
 
       case "ArrowRight":
-        nextCol = Math.min(
-          colIndex + 1,
-          columns.length - 1
+        event.preventDefault();
+        focusCell(
+          rowIndex,
+          Math.min(colIndex + 1, columns.length - 1)
         );
         break;
 
       case "ArrowLeft":
-        nextCol = Math.max(colIndex - 1, 0);
+        event.preventDefault();
+        focusCell(rowIndex, Math.max(colIndex - 1, 0));
         break;
 
       case "Enter":
         event.preventDefault();
         selectRow(item);
-        return;
+        break;
 
       case " ":
         event.preventDefault();
         toggleRow(item);
-        return;
-
-      default:
-        return;
+        break;
     }
-
-    event.preventDefault();
-
-    setActive({
-      row: nextRow,
-      col: nextCol,
-    });
-
-    cellRefs.current[nextRow]?.[nextCol]?.focus();
   };
 
-  // Empty columns
   if (columns.length === 0) {
     return <p role="status">No columns configured.</p>;
   }
 
-  const activeRow = Math.min(
-    active.row,
-    Math.max(0, paginatedRows.length - 1)
-  );
-
-  const activeCol = Math.min(
-    active.col,
-    columns.length - 1
-  );
-
   return (
     <section aria-label={ariaLabel}>
-      {/* Search toolbar */}
+      {/* Search */}
       <div className="grid-toolbar">
         <div className="search-group">
-          <label htmlFor={searchId}>
-            Search employees
-          </label>
+          <label htmlFor={searchId}>Search employees</label>
 
           <input
             id={searchId}
@@ -278,98 +299,158 @@ export default function DataGrid<T>({
           <button
             type="button"
             className="clear-button"
+            disabled={!search}
             onClick={() => handleSearch("")}
-            disabled={search.length === 0}
           >
             Clear
           </button>
         </div>
       </div>
 
-      {/* Grid status */}
-      <p className="grid-status" role="status">
-        Showing {firstRecord}–{endIndex} of{" "}
-        {totalRecords} records.
+      {/* Live status */}
+      <p className="grid-status" role="status" aria-atomic="true">
+        Showing {firstRecord}–{endIndex} of {totalRecords} records.
         {" "}
-        {selectedRows.length} rows selected.
+        {validSelectedRows.length} rows selected.
         {" "}
         Page {currentPage + 1} of {totalPages}.
       </p>
 
-      {/* Keyboard instructions */}
-      <p
-        id={instructionsId}
-        className="grid-instructions"
-      >
-        Use arrow keys to navigate cells.
+      {/* Instructions */}
+      <p id={instructionsId} className="grid-instructions">
+        Use Tab to enter or leave the grid.
+        Use arrow keys to navigate headers and cells.
         Press Enter to select a row.
         Press Space to toggle row selection.
       </p>
 
-      {/* Data Grid */}
+      {/* Accessible Grid */}
       <div className="table-container">
         <table
           role="grid"
           aria-label={ariaLabel}
           aria-describedby={instructionsId}
           aria-multiselectable="true"
+          onFocusCapture={() => {
+            gridHasFocus.current = true;
+          }}
+          onBlurCapture={(event) => {
+            const next = event.relatedTarget;
+
+            if (
+              !next ||
+              !event.currentTarget.contains(next as Node)
+            ) {
+              gridHasFocus.current = false;
+            }
+          }}
         >
           <thead>
             <tr role="row">
-              {columns.map((column) => (
-                <th
-                  key={String(column.accessorKey)}
-                  role="columnheader"
-                  scope="col"
-                  aria-sort={
-                    column.sortable &&
-                    sortConfig?.key === column.accessorKey
-                      ? sortConfig.direction
-                      : undefined
-                  }
-                >
-                  {column.sortable ? (
-                    <button
-                      type="button"
-                      className="sort-button"
-                      onClick={() =>
-                        handleSort(column.accessorKey)
-                      }
-                      aria-label={
-                        `Sort by ${column.header}` +
-                        (sortConfig?.key ===
-                        column.accessorKey
-                          ? `, currently sorted ${sortConfig.direction}`
-                          : "")
-                      }
-                    >
-                      {column.header}
+              {columns.map((column, colIndex) => {
+                const isSorted =
+                  sortConfig?.key === column.accessorKey;
 
-                      <span aria-hidden="true">
-                        {sortConfig?.key ===
-                        column.accessorKey
-                          ? sortConfig.direction ===
-                            "ascending"
-                            ? " ↑"
-                            : " ↓"
-                          : " ↕"}
-                      </span>
-                    </button>
-                  ) : (
-                    column.header
-                  )}
-                </th>
-              ))}
+                const isActiveHeader =
+                  headerIsActive &&
+                  activeColumn === colIndex;
+
+                return (
+                  <th
+                    key={String(column.accessorKey)}
+                    scope="col"
+                    role="columnheader"
+                    aria-sort={
+                      column.sortable && isSorted
+                        ? sortConfig.direction
+                        : undefined
+                    }
+                    tabIndex={
+                      column.sortable
+                        ? undefined
+                        : isActiveHeader
+                          ? 0
+                          : -1
+                    }
+                    ref={
+                      column.sortable
+                        ? undefined
+                        : (element) => {
+                            headerRefs.current[colIndex] = element;
+                          }
+                    }
+                    onFocus={
+                      column.sortable
+                        ? undefined
+                        : () =>
+                            setActive({
+                              type: "header",
+                              col: colIndex,
+                            })
+                    }
+                    onKeyDown={
+                      column.sortable
+                        ? undefined
+                        : (event) =>
+                            handleHeaderKeyDown(event, colIndex)
+                    }
+                  >
+                    {column.sortable ? (
+                      <button
+                        type="button"
+                        className="sort-button"
+                        tabIndex={isActiveHeader ? 0 : -1}
+                        ref={(element) => {
+                          headerRefs.current[colIndex] = element;
+                        }}
+                        onFocus={() =>
+                          setActive({
+                            type: "header",
+                            col: colIndex,
+                          })
+                        }
+                        onKeyDown={(event) =>
+                          handleHeaderKeyDown(event, colIndex)
+                        }
+                        onClick={() =>
+                          handleSort(column.accessorKey, colIndex)
+                        }
+                        aria-label={
+                          isSorted
+                            ? `${column.header}, sorted ${
+                                sortConfig.direction
+                              }. Activate to sort ${
+                                sortConfig.direction === "ascending"
+                                  ? "descending"
+                                  : "ascending"
+                              }.`
+                            : `${column.header}, sort ascending`
+                        }
+                      >
+                        {column.header}
+                        <span aria-hidden="true">
+                          {isSorted
+                            ? sortConfig.direction === "ascending"
+                              ? " ↑"
+                              : " ↓"
+                            : " ↕"}
+                        </span>
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
           <tbody>
-            {paginatedRows.length === 0 ? (
+            {pageRows.length === 0 ? (
               <tr role="row">
                 <td
                   role="gridcell"
                   colSpan={columns.length}
-                  tabIndex={0}
                   className="empty-state"
                 >
                   No matching results found.
@@ -377,10 +458,10 @@ export default function DataGrid<T>({
                 </td>
               </tr>
             ) : (
-              paginatedRows.map(
-                ({ item: row, index: originalIndex }, rowIndex) => {
+              pageRows.map(
+                ({ item, index: originalIndex }, rowIndex) => {
                   const isSelected =
-                    selectedRows.includes(row);
+                    validSelectedRows.includes(item);
 
                   return (
                     <tr
@@ -393,8 +474,9 @@ export default function DataGrid<T>({
                           key={String(column.accessorKey)}
                           role="gridcell"
                           tabIndex={
-                            activeRow === rowIndex &&
-                            activeCol === colIndex
+                            !headerIsActive &&
+                            activeRowIndex === rowIndex &&
+                            activeColumn === colIndex
                               ? 0
                               : -1
                           }
@@ -408,25 +490,26 @@ export default function DataGrid<T>({
                           }}
                           onFocus={() =>
                             setActive({
-                              row: rowIndex,
+                              type: "body",
+                              item,
                               col: colIndex,
                             })
                           }
                           onKeyDown={(event) =>
-                            handleKeyDown(
+                            handleCellKeyDown(
                               event,
                               rowIndex,
                               colIndex,
-                              row
+                              item
                             )
                           }
                           onClick={(event) => {
                             event.currentTarget.focus();
-                            selectRow(row);
+                            selectRow(item);
                           }}
                         >
                           {String(
-                            row[column.accessorKey] ?? "—"
+                            item[column.accessorKey] ?? "—"
                           )}
 
                           {colIndex === 0 && isSelected && (
@@ -445,11 +528,8 @@ export default function DataGrid<T>({
         </table>
       </div>
 
-      {/* Pagination controls */}
-      <nav
-        className="pagination"
-        aria-label="Grid pagination"
-      >
+      {/* Pagination */}
+      <nav className="pagination" aria-label="Grid pagination">
         <button
           type="button"
           className="pagination-button"
@@ -460,33 +540,26 @@ export default function DataGrid<T>({
         </button>
 
         <div className="page-numbers">
-          {Array.from(
-            { length: totalPages },
-            (_, index) => (
-              <button
-                key={index}
-                type="button"
-                className="pagination-button"
-                aria-label={`Go to page ${index + 1}`}
-                aria-current={
-                  currentPage === index
-                    ? "page"
-                    : undefined
-                }
-                onClick={() => changePage(index)}
-              >
-                {index + 1}
-              </button>
-            )
-          )}
+          {Array.from({ length: totalPages }, (_, index) => (
+            <button
+              key={index}
+              type="button"
+              className="pagination-button"
+              aria-label={`Go to page ${index + 1}`}
+              aria-current={
+                currentPage === index ? "page" : undefined
+              }
+              onClick={() => changePage(index)}
+            >
+              {index + 1}
+            </button>
+          ))}
         </div>
 
         <button
           type="button"
           className="pagination-button"
-          aria-disabled={
-            currentPage === totalPages - 1
-          }
+          aria-disabled={currentPage === totalPages - 1}
           onClick={() => changePage(currentPage + 1)}
         >
           Next →

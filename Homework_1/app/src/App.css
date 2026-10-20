@@ -246,3 +246,19 @@ td[role="gridcell"] {
     gap: 8px;
   }
 }
+/* Focus indicator for non-sortable column headers */
+th[role="columnheader"][tabindex]:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: -3px;
+}
+
+/* Maintain visible keyboard focus inside the grid */
+[role="gridcell"]:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: -3px;
+}
+
+/* Prevent text wrapping inside pagination buttons */
+.pagination-button {
+  white-space: nowrap;
+}
