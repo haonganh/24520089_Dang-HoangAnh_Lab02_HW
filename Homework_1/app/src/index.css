@@ -1,14 +1,45 @@
+
 :root {
-  font-family: Arial, sans-serif;
-  color: #172554;
-  background: #f8fafc;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+
+  color: #0f172a;
+  background-color: #f8fafc;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+
+  color-scheme: light;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  min-width: 320px;
+}
+
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+::selection {
+  background: #1e3a8a;
+  color: #ffffff;
 }
