@@ -52,6 +52,8 @@ h2 {
   background: #ffffff;
 }
 
+/* Playback buttons */
+
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -59,12 +61,13 @@ h2 {
   margin: 24px 0;
 }
 
-.controls button {
+.controls button,
+.mute-button {
   min-height: 44px;
   min-width: 100px;
   padding: 10px 16px;
   background: #1e3a8a;
-  color: white;
+  color: #ffffff;
   border: 2px solid #1e3a8a;
   border-radius: 6px;
   font: inherit;
@@ -72,7 +75,8 @@ h2 {
   cursor: pointer;
 }
 
-.controls button:hover:not(:disabled) {
+.controls button:hover:not(:disabled),
+.mute-button:hover {
   background: #172554;
 }
 
@@ -83,34 +87,79 @@ h2 {
   cursor: not-allowed;
 }
 
+/* Volume */
+
+.volume-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0;
+  padding: 20px;
+  background: #f1f5f9;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+}
+
+.volume-panel label {
+  font-weight: 700;
+  color: #172554;
+}
+
+.volume-panel input[type="range"] {
+  flex: 1 1 180px;
+  min-width: 100px;
+  min-height: 44px;
+  cursor: pointer;
+  accent-color: #1e3a8a;
+}
+
+.volume-panel output {
+  min-width: 48px;
+  font-weight: 700;
+  color: #172554;
+}
+
+.mute-button[aria-pressed="true"] {
+  background: #334155;
+  border-color: #334155;
+}
+
+/* Visible keyboard focus */
+
 .controls button:focus-visible,
-.file-group input:focus-visible {
+.mute-button:focus-visible,
+.file-group input:focus-visible,
+.volume-panel input:focus-visible {
   outline: 3px solid #b45309;
   outline-offset: 3px;
 }
 
+/* Feedback */
+
+.player-feedback {
+  margin-top: 24px;
+}
+
 .status {
-  margin-top: 20px;
+  margin-top: 16px;
   color: #14532d;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-.playback-state {
-  color: #172554;
+.status-error {
+  color: #991b1b;
 }
 
-.visualizer-placeholder {
-  display: grid;
-  place-items: center;
-  min-height: 200px;
-  margin-top: 24px;
-  padding: 16px;
-  background: #0f172a;
-  color: #ffffff;
-  border-radius: 8px;
-  text-align: center;
+.playback-state,
+.queue-status {
+  margin: 12px 0;
+  color: #172554;
+  line-height: 1.6;
 }
+
+/* Responsive */
 
 @media (max-width: 600px) {
   .app-container {
@@ -127,5 +176,29 @@ h2 {
 
   .controls button {
     width: 100%;
+  }
+
+  .volume-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .volume-panel input[type="range"] {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .mute-button {
+    width: 100%;
+  }
+}
+
+/* High contrast */
+
+@media (forced-colors: active) {
+  .controls button,
+  .mute-button,
+  .volume-panel {
+    border-color: ButtonText;
   }
 }

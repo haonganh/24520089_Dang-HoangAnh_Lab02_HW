@@ -9,24 +9,18 @@ export type PlaybackState =
 
 export class AudioPlaybackEngine {
   private context: AudioContext | null = null;
-
   private analyser: AnalyserNode | null = null;
-
   private gain: GainNode | null = null;
-
   private source: AudioBufferSourceNode | null = null;
-
   private buffer: AudioBuffer | null = null;
 
   private startedAt = 0;
-
   private pausedAt = 0;
+  private volume = 1;
+  private operationId = 0;
+  private disposed = false;
 
   private state: PlaybackState = "idle";
-
-  private operationId = 0;
-
-  private disposed = false;
 
   private onStateChange:
     | ((state: PlaybackState) => void)
@@ -38,7 +32,6 @@ export class AudioPlaybackEngine {
     this.onStateChange = onStateChange ?? null;
   }
 
-  // Notify the UI when playback state changes
   private updateState(state: PlaybackState): void {
     this.state = state;
     this.onStateChange?.(state);
@@ -54,21 +47,23 @@ export class AudioPlaybackEngine {
     return this.state;
   }
 
-  // Create the audio graph once
+  getAnalyser(): AnalyserNode | null {
+    return this.analyser;
+  }
+
   private initializeAudio(): AudioContext {
-    if (this.context) {
-      return this.context;
-    }
+    if (this.context) return this.context;
 
     const context = new AudioContext();
-
     const gain = context.createGain();
     const analyser = context.createAnalyser();
 
     analyser.fftSize = 512;
     analyser.smoothingTimeConstant = 0.8;
 
-    // Source -> Gain -> Analyser -> Speakers
+    // Source -> Gain -> Analyser -> Destination
+    gain.gain.value = this.volume;
+
     gain.connect(analyser);
     analyser.connect(context.destination);
 
@@ -79,12 +74,6 @@ export class AudioPlaybackEngine {
     return context;
   }
 
-  // Access the analyser for T06 visualization
-  getAnalyser(): AnalyserNode | null {
-    return this.analyser;
-  }
-
-  // Load a decoded audio buffer
   loadBuffer(buffer: AudioBuffer): void {
     if (this.disposed) {
       throw new Error("Audio engine is disposed.");
@@ -95,12 +84,10 @@ export class AudioPlaybackEngine {
     }
 
     this.reset();
-
     this.buffer = buffer;
     this.updateState("ready");
   }
 
-  // Disconnect the current source safely
   private stopSource(): void {
     const source = this.source;
 
@@ -112,13 +99,12 @@ export class AudioPlaybackEngine {
     try {
       source.stop();
     } catch {
-      // The source may already have ended.
+      // Source may already have stopped.
     }
 
     source.disconnect();
   }
 
-  // Play or resume audio
   async play(): Promise<void> {
     if (this.disposed) {
       throw new Error("Audio engine is disposed.");
@@ -133,19 +119,22 @@ export class AudioPlaybackEngine {
     if (this.state === "playing") return;
 
     const operation = ++this.operationId;
-
     const context = this.initializeAudio();
 
-    // Resume must be triggered by user interaction
     await context.resume();
 
-    // Ignore outdated play requests
     if (
       this.disposed ||
       operation !== this.operationId ||
-      !this.buffer
+      this.buffer !== buffer
     ) {
       return;
+    }
+
+    this.stopSource();
+
+    if (this.pausedAt >= buffer.duration) {
+      this.pausedAt = 0;
     }
 
     const source = context.createBufferSource();
@@ -154,12 +143,6 @@ export class AudioPlaybackEngine {
     source.connect(this.gain!);
 
     this.source = source;
-
-    // Restart if playback reached the end
-    if (this.pausedAt >= buffer.duration) {
-      this.pausedAt = 0;
-    }
-
     this.startedAt = context.currentTime;
 
     source.onended = () => {
@@ -183,7 +166,6 @@ export class AudioPlaybackEngine {
     }
   }
 
-  // Pause playback and remember position
   pause(): void {
     if (
       this.state !== "playing" ||
@@ -207,13 +189,12 @@ export class AudioPlaybackEngine {
     this.updateState("paused");
   }
 
-  // Stop playback and reset position
   stop(): void {
     if (this.disposed) return;
 
     ++this.operationId;
-
     this.stopSource();
+
     this.pausedAt = 0;
 
     this.updateState(
@@ -221,32 +202,35 @@ export class AudioPlaybackEngine {
     );
   }
 
-  // Clear currently loaded audio
   reset(): void {
     if (this.disposed) return;
 
     ++this.operationId;
 
     this.stopSource();
-
     this.buffer = null;
     this.pausedAt = 0;
 
     this.updateState("idle");
   }
 
-  // Adjust volume from 0 to 1
+  // Persist volume even before AudioContext exists
   setVolume(value: number): void {
-    if (!Number.isFinite(value)) return;
+    if (this.disposed || !Number.isFinite(value)) {
+      return;
+    }
 
-    const volume = Math.max(0, Math.min(1, value));
+    this.volume = Math.max(0, Math.min(1, value));
 
     if (this.gain) {
-      this.gain.gain.value = volume;
+      this.gain.gain.value = this.volume;
     }
   }
 
-  // Release all Web Audio resources
+  getVolume(): number {
+    return this.volume;
+  }
+
   async dispose(): Promise<void> {
     if (this.disposed) return;
 

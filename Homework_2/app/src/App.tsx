@@ -15,31 +15,35 @@ import "./App.css";
 
 function App() {
   const queueRef = useRef<AudioTaskQueue | null>(null);
-
-  const playerRef = useRef<AudioPlaybackEngine | null>(
-    null
-  );
+  const playerRef = useRef<AudioPlaybackEngine | null>(null);
 
   const requestIdRef = useRef(0);
+  const previousVolumeRef = useRef(70);
 
   const [file, setFile] = useState<File | null>(null);
-
   const [isLoading, setIsLoading] = useState(false);
 
   const [playbackState, setPlaybackState] =
     useState<PlaybackState>("idle");
 
+  const [volume, setVolume] = useState(70);
+  const [pendingTasks, setPendingTasks] = useState(0);
+
   const [message, setMessage] = useState(
     "Select an audio file to begin."
   );
 
-  // Initialize audio resources
+  const [hasError, setHasError] = useState(false);
+
+  // Initialize the audio queue and player
   useEffect(() => {
     const queue = new AudioTaskQueue();
 
     const player = new AudioPlaybackEngine(
       setPlaybackState
     );
+
+    player.setVolume(0.7);
 
     queueRef.current = queue;
     playerRef.current = player;
@@ -62,7 +66,7 @@ function App() {
     };
   }, []);
 
-  // Handle file selection
+  // Select an audio file
   const handleFileChange = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
@@ -76,6 +80,8 @@ function App() {
 
     setFile(selectedFile);
     setIsLoading(false);
+    setPendingTasks(0);
+    setHasError(false);
 
     setMessage(
       selectedFile
@@ -84,7 +90,7 @@ function App() {
     );
   };
 
-  // Load audio using FIFO queue
+  // Download and decode with FIFO Queue
   const handleLoad = async () => {
     const queue = queueRef.current;
     const player = playerRef.current;
@@ -99,10 +105,15 @@ function App() {
     const objectUrl = URL.createObjectURL(file);
 
     setIsLoading(true);
+    setHasError(false);
     setMessage("Loading and decoding audio...");
 
     try {
-      const buffer = await queue.enqueue(objectUrl);
+      const task = queue.enqueue(objectUrl);
+
+      setPendingTasks(queue.getStatus().pending);
+
+      const buffer = await task;
 
       if (requestId !== requestIdRef.current) {
         return;
@@ -122,6 +133,8 @@ function App() {
         error instanceof Error &&
         error.name === "AbortError";
 
+      setHasError(!isAbort);
+
       setMessage(
         isAbort
           ? "Audio loading cancelled."
@@ -136,41 +149,71 @@ function App() {
 
       if (requestId === requestIdRef.current) {
         setIsLoading(false);
+        setPendingTasks(0);
       }
     }
   };
 
-  // Play or resume audio
+  // Start or resume playback
   const handlePlay = async () => {
     try {
       await playerRef.current?.play();
+      setHasError(false);
     } catch (error) {
+      setHasError(true);
+
       setMessage(
         error instanceof Error
-          ? error.message
+          ? `Playback error: ${error.message}`
           : "Unable to play audio."
       );
     }
   };
 
-  // Pause playback
   const handlePause = () => {
     playerRef.current?.pause();
   };
 
-  // Stop playback
   const handleStop = () => {
     playerRef.current?.stop();
   };
 
-  // Cancel audio loading
+  // Cancel the current download
   const handleCancel = () => {
     ++requestIdRef.current;
 
     queueRef.current?.cancelAll();
 
     setIsLoading(false);
+    setPendingTasks(0);
+    setHasError(false);
     setMessage("Audio loading cancelled.");
+  };
+
+  // Accessible volume control
+  const updateVolume = (newVolume: number) => {
+    const safeVolume = Math.max(
+      0,
+      Math.min(100, newVolume)
+    );
+
+    setVolume(safeVolume);
+
+    if (safeVolume > 0) {
+      previousVolumeRef.current = safeVolume;
+    }
+
+    playerRef.current?.setVolume(safeVolume / 100);
+  };
+
+  // Mute and unmute
+  const handleMute = () => {
+    if (volume > 0) {
+      previousVolumeRef.current = volume;
+      updateVolume(0);
+    } else {
+      updateVolume(previousVolumeRef.current || 70);
+    }
   };
 
   const canPlay =
@@ -179,7 +222,6 @@ function App() {
 
   const isPlaying = playbackState === "playing";
 
-  // Analyser is initialized when playback begins
   const analyser =
     playerRef.current?.getAnalyser() ?? null;
 
@@ -199,10 +241,10 @@ function App() {
         aria-labelledby="audio-heading"
       >
         <h2 id="audio-heading">
-          Audio Playback Engine
+          Accessible Audio Player
         </h2>
 
-        {/* File input */}
+        {/* File selector */}
         <div className="file-group">
           <label htmlFor="audio-file">
             Choose an audio file (MP3/WAV)
@@ -217,7 +259,11 @@ function App() {
         </div>
 
         {/* Playback controls */}
-        <div className="controls">
+        <div
+          className="controls"
+          role="group"
+          aria-label="Audio playback controls"
+        >
           <button
             type="button"
             onClick={() => void handleLoad()}
@@ -264,17 +310,72 @@ function App() {
           </button>
         </div>
 
-        {/* Accessible status */}
-        <p className="status" role="status">
-          {message}
-        </p>
+        {/* Volume controls */}
+        <div
+          className="volume-panel"
+          role="group"
+          aria-label="Volume controls"
+        >
+          <label htmlFor="volume-slider">
+            Volume
+          </label>
 
-        <p className="playback-state">
-          Playback state:{" "}
-          <strong>{playbackState}</strong>
-        </p>
+          <input
+            id="volume-slider"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={volume}
+            onChange={(event) =>
+              updateVolume(
+                Number(event.target.value)
+              )
+            }
+          />
 
-        {/* Real-time Audio Visualizer */}
+          <output htmlFor="volume-slider">
+            {volume}%
+          </output>
+
+          <button
+            type="button"
+            className="mute-button"
+            onClick={handleMute}
+            aria-pressed={volume === 0}
+          >
+            {volume === 0 ? "Unmute" : "Mute"}
+          </button>
+        </div>
+
+        {/* Accessible loading and error status */}
+        <div className="player-feedback">
+          <p
+            className={`status ${
+              hasError ? "status-error" : ""
+            }`}
+            role={hasError ? "alert" : "status"}
+            aria-atomic="true"
+          >
+            {message}
+          </p>
+
+          <p className="playback-state">
+            Playback state:{" "}
+            <strong>{playbackState}</strong>
+          </p>
+
+          <p className="queue-status">
+            FIFO Queue:{" "}
+            <strong>
+              {isLoading ? "Processing" : "Idle"}
+            </strong>
+            {" | "}
+            Pending tasks: {pendingTasks}
+          </p>
+        </div>
+
+        {/* Real-time visualizer */}
         <AudioVisualizer
           analyser={analyser}
           isPlaying={isPlaying}
