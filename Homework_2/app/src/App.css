@@ -1,7 +1,7 @@
 
 #root {
-  min-height: 100vh;
   width: 100%;
+  min-height: 100vh;
 }
 
 .app-container {
@@ -17,6 +17,7 @@
 h1 {
   color: #172554;
   font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 1.3;
 }
 
 h2 {
@@ -24,19 +25,107 @@ h2 {
 }
 
 .audio-panel {
-  background: white;
+  padding: 24px;
+  background: #ffffff;
   border: 2px solid #94a3b8;
   border-radius: 12px;
-  padding: 24px;
+}
+
+.file-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.file-group label {
+  font-weight: 600;
+  color: #172554;
+}
+
+.file-group input {
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
+  border: 2px solid #64748b;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.controls button {
+  min-height: 44px;
+  min-width: 100px;
+  padding: 10px 16px;
+  background: #1e3a8a;
+  color: white;
+  border: 2px solid #1e3a8a;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.controls button:hover:not(:disabled) {
+  background: #172554;
+}
+
+.controls button:disabled {
+  background: #e2e8f0;
+  color: #334155;
+  border-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.controls button:focus-visible,
+.file-group input:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 3px;
 }
 
 .status {
+  margin-top: 20px;
   color: #14532d;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.playback-state {
+  color: #172554;
+}
+
+.visualizer-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  margin-top: 24px;
+  padding: 16px;
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 8px;
+  text-align: center;
 }
 
 @media (max-width: 600px) {
   .app-container {
     padding: 16px;
+  }
+
+  .audio-panel {
+    padding: 16px;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .controls button {
+    width: 100%;
   }
 }
