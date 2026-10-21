@@ -9,6 +9,8 @@ import {
   type PlaybackState,
 } from "./audio/audio-playback-engine";
 
+import AudioVisualizer from "./components/AudioVisualizer";
+
 import "./App.css";
 
 function App() {
@@ -31,7 +33,7 @@ function App() {
     "Select an audio file to begin."
   );
 
-  // Initialize and clean up audio resources
+  // Initialize audio resources
   useEffect(() => {
     const queue = new AudioTaskQueue();
 
@@ -60,7 +62,7 @@ function App() {
     };
   }, []);
 
-  // Handle local audio file selection
+  // Handle file selection
   const handleFileChange = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
@@ -82,7 +84,7 @@ function App() {
     );
   };
 
-  // Decode audio using the FIFO Queue
+  // Load audio using FIFO queue
   const handleLoad = async () => {
     const queue = queueRef.current;
     const player = playerRef.current;
@@ -138,7 +140,7 @@ function App() {
     }
   };
 
-  // Play or resume
+  // Play or resume audio
   const handlePlay = async () => {
     try {
       await playerRef.current?.play();
@@ -151,17 +153,17 @@ function App() {
     }
   };
 
-  // Pause
+  // Pause playback
   const handlePause = () => {
     playerRef.current?.pause();
   };
 
-  // Stop
+  // Stop playback
   const handleStop = () => {
     playerRef.current?.stop();
   };
 
-  // Cancel pending downloads
+  // Cancel audio loading
   const handleCancel = () => {
     ++requestIdRef.current;
 
@@ -174,6 +176,12 @@ function App() {
   const canPlay =
     !isLoading &&
     ["ready", "paused", "stopped"].includes(playbackState);
+
+  const isPlaying = playbackState === "playing";
+
+  // Analyser is initialized when playback begins
+  const analyser =
+    playerRef.current?.getAnalyser() ?? null;
 
   return (
     <main className="app-container">
@@ -194,6 +202,7 @@ function App() {
           Audio Playback Engine
         </h2>
 
+        {/* File input */}
         <div className="file-group">
           <label htmlFor="audio-file">
             Choose an audio file (MP3/WAV)
@@ -207,6 +216,7 @@ function App() {
           />
         </div>
 
+        {/* Playback controls */}
         <div className="controls">
           <button
             type="button"
@@ -229,7 +239,7 @@ function App() {
           <button
             type="button"
             onClick={handlePause}
-            disabled={playbackState !== "playing"}
+            disabled={!isPlaying}
           >
             Pause
           </button>
@@ -254,20 +264,21 @@ function App() {
           </button>
         </div>
 
+        {/* Accessible status */}
         <p className="status" role="status">
           {message}
         </p>
 
         <p className="playback-state">
-          Playback state: <strong>{playbackState}</strong>
+          Playback state:{" "}
+          <strong>{playbackState}</strong>
         </p>
 
-        <div
-          className="visualizer-placeholder"
-          aria-label="Audio visualizer placeholder"
-        >
-          <p>Audio Visualizer – Coming in T06</p>
-        </div>
+        {/* Real-time Audio Visualizer */}
+        <AudioVisualizer
+          analyser={analyser}
+          isPlaying={isPlaying}
+        />
       </section>
     </main>
   );
