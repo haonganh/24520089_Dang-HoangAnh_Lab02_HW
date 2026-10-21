@@ -4,19 +4,81 @@ import type {
   AudioQueueStatus,
 } from "./audio-task";
 
+// Internal task with a stable identifier
+interface QueuedAudioTask extends AudioTask {
+  id: number;
+  settled: boolean;
+}
+
+// Handle for cancelling an individual task
+export interface AudioTaskHandle {
+  id: number;
+  promise: Promise<AudioBuffer>;
+  cancel: () => boolean;
+}
+
 export class AudioTaskQueue {
-  private queue: AudioTask[] = [];
+  private queue: QueuedAudioTask[] = [];
 
   private isProcessing = false;
 
   private activeController: AbortController | null = null;
 
+  private activeTask: QueuedAudioTask | null = null;
+
   private audioContext: AudioContext | null = null;
+
+  private processingPromise: Promise<void> | null = null;
+
+  private disposalPromise: Promise<void> | null = null;
 
   private disposed = false;
 
-  // Add a new audio task to the FIFO queue
+  private nextTaskId = 1;
+
+  // Create a standard cancellation error
+  private createAbortError(): DOMException {
+    return new DOMException(
+      "Audio task cancelled.",
+      "AbortError"
+    );
+  }
+
+  // Resolve a task exactly once
+  private resolveTask(
+    task: QueuedAudioTask,
+    buffer: AudioBuffer
+  ): void {
+    if (
+      task.settled ||
+      task.controller.signal.aborted ||
+      this.disposed
+    ) {
+      return;
+    }
+
+    task.settled = true;
+    task.resolve(buffer);
+  }
+
+  // Reject a task exactly once
+  private rejectTask(
+    task: QueuedAudioTask,
+    error: unknown
+  ): void {
+    if (task.settled) return;
+
+    task.settled = true;
+    task.reject(error);
+  }
+
+  // Required enqueue API
   async enqueue(trackUrl: string): Promise<AudioBuffer> {
+    return this.enqueueTask(trackUrl).promise;
+  }
+
+  // Enqueue with an individual cancellation handle
+  enqueueTask(trackUrl: string): AudioTaskHandle {
     if (this.disposed) {
       throw new Error("Audio queue has been disposed.");
     }
@@ -25,81 +87,115 @@ export class AudioTaskQueue {
       throw new Error("Audio URL cannot be empty.");
     }
 
-    return new Promise<AudioBuffer>((resolve, reject) => {
-      const controller = new AbortController();
+    const controller = new AbortController();
 
-      const task: AudioTask = {
-        trackUrl,
-        controller,
-        resolve,
-        reject,
-      };
+    let resolve!: (buffer: AudioBuffer) => void;
+    let reject!: (error: unknown) => void;
 
-      // FIFO: insert at the end
-      this.queue.push(task);
+    const promise = new Promise<AudioBuffer>(
+      (res, rej) => {
+        resolve = res;
+        reject = rej;
+      }
+    );
 
-      void this.processNext();
-    });
+    const task: QueuedAudioTask = {
+      id: this.nextTaskId++,
+      trackUrl,
+      controller,
+      resolve,
+      reject,
+      settled: false,
+    };
+
+    // FIFO insertion
+    this.queue.push(task);
+
+    this.startProcessing();
+
+    return {
+      id: task.id,
+      promise,
+      cancel: () => this.cancelTask(task.id),
+    };
   }
 
-  // Process one task at a time
-  private async processNext(): Promise<void> {
-    if (this.isProcessing || this.disposed) {
+  // Start only one worker
+  private startProcessing(): void {
+    if (this.processingPromise || this.disposed) {
       return;
     }
 
+    this.processingPromise = this.processNext().finally(
+      () => {
+        this.processingPromise = null;
+
+        if (this.queue.length > 0 && !this.disposed) {
+          this.startProcessing();
+        }
+      }
+    );
+  }
+
+  // Process tasks sequentially
+  private async processNext(): Promise<void> {
     this.isProcessing = true;
 
     try {
       while (this.queue.length > 0 && !this.disposed) {
-        // FIFO: remove from the front
+        // FIFO removal
         const task = this.queue.shift();
 
-        if (!task) break;
+        if (!task || task.settled) continue;
 
+        this.activeTask = task;
         this.activeController = task.controller;
 
         try {
+          // Download audio
           const response = await fetch(task.trackUrl, {
             signal: task.controller.signal,
           });
 
           if (!response.ok) {
             throw new Error(
-              `Failed to fetch audio: ${response.status}`
+              `Audio download failed: HTTP ${response.status}`
             );
           }
 
           const arrayBuffer = await response.arrayBuffer();
 
-          if (task.controller.signal.aborted) {
-            throw new DOMException(
-              "Audio task cancelled.",
-              "AbortError"
-            );
+          if (
+            task.controller.signal.aborted ||
+            this.disposed
+          ) {
+            throw this.createAbortError();
           }
 
-          // Create one shared AudioContext
+          // Reuse one AudioContext for decoding
           if (!this.audioContext) {
             this.audioContext = new AudioContext();
           }
 
-          // Decode downloaded audio
+          // Decoding itself cannot be aborted
           const audioBuffer =
-            await this.audioContext.decodeAudioData(arrayBuffer);
-
-          if (task.controller.signal.aborted || this.disposed) {
-            throw new DOMException(
-              "Audio task cancelled.",
-              "AbortError"
+            await this.audioContext.decodeAudioData(
+              arrayBuffer
             );
+
+          // Ignore a late result after cancellation
+          if (
+            task.controller.signal.aborted ||
+            this.disposed
+          ) {
+            throw this.createAbortError();
           }
 
-          task.resolve(audioBuffer);
+          this.resolveTask(task, audioBuffer);
         } catch (error) {
-          // Reject only the failed task
-          task.reject(error);
+          this.rejectTask(task, error);
         } finally {
+          this.activeTask = null;
           this.activeController = null;
         }
       }
@@ -108,7 +204,56 @@ export class AudioTaskQueue {
     }
   }
 
-  // Get current queue status
+  // Cancel a waiting or active task
+  cancelTask(taskId: number): boolean {
+    // Check waiting tasks
+    const index = this.queue.findIndex(
+      (task) => task.id === taskId
+    );
+
+    if (index !== -1) {
+      const [task] = this.queue.splice(index, 1);
+
+      task.controller.abort();
+      this.rejectTask(task, this.createAbortError());
+
+      return true;
+    }
+
+    // Check active task
+    if (
+      this.activeTask?.id === taskId &&
+      !this.activeTask.settled
+    ) {
+      this.activeController?.abort();
+
+      this.rejectTask(
+        this.activeTask,
+        this.createAbortError()
+      );
+
+      return true;
+    }
+
+    return false;
+  }
+
+  // Cancel all active and waiting tasks
+  cancelAll(): void {
+    if (this.activeTask) {
+      this.cancelTask(this.activeTask.id);
+    }
+
+    const pendingIds = this.queue.map(
+      (task) => task.id
+    );
+
+    for (const id of pendingIds) {
+      this.cancelTask(id);
+    }
+  }
+
+  // Read-only queue status
   getStatus(): AudioQueueStatus {
     return {
       pending: this.queue.length,
@@ -116,37 +261,35 @@ export class AudioTaskQueue {
     };
   }
 
-  // Cancel the current task and all pending tasks
-  cancelAll(): void {
-    this.activeController?.abort();
-
-    const pendingTasks = this.queue.splice(0);
-
-    for (const task of pendingTasks) {
-      task.controller.abort();
-
-      task.reject(
-        new DOMException(
-          "Audio task cancelled.",
-          "AbortError"
-        )
-      );
+  // Safely release resources
+  dispose(): Promise<void> {
+    if (this.disposalPromise) {
+      return this.disposalPromise;
     }
-  }
-
-  // Release resources when the queue is no longer needed
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
 
     this.disposed = true;
 
+    // Reject active and pending promises
     this.cancelAll();
 
-    const context = this.audioContext;
-    this.audioContext = null;
+    this.disposalPromise = (async () => {
+      // Wait for any in-progress decoding to finish
+      if (this.processingPromise) {
+        await this.processingPromise;
+      }
 
-    if (context && context.state !== "closed") {
-      await context.close();
-    }
+      const context = this.audioContext;
+
+      this.audioContext = null;
+      this.activeTask = null;
+      this.activeController = null;
+      this.queue = [];
+
+      if (context && context.state !== "closed") {
+        await context.close();
+      }
+    })();
+
+    return this.disposalPromise;
   }
 }
