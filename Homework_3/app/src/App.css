@@ -1,0 +1,184 @@
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+
+.site-header {
+  background: #172554;
+  color: #ffffff;
+  padding: 20px;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.brand {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.sale-badge {
+  background: #facc15;
+  color: #172554;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+/* Main layout */
+
+.main-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  flex: 1;
+}
+
+/* Hero */
+
+.hero {
+  padding: 48px 24px;
+  margin-bottom: 32px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+}
+
+.eyebrow {
+  color: #9a3412;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.hero h1 {
+  color: #172554;
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  line-height: 1.2;
+}
+
+.hero-description {
+  max-width: 700px;
+  margin: 20px auto 0;
+  color: #334155;
+}
+
+/* Sections */
+
+.countdown-section,
+.products-section,
+.checkout-section {
+  margin-bottom: 24px;
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+}
+
+h2 {
+  margin-top: 0;
+  color: #172554;
+}
+
+h3 {
+  color: #1e3a8a;
+}
+
+p {
+  line-height: 1.6;
+}
+
+/* Countdown status */
+
+.info-message {
+  padding: 14px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-left: 4px solid #1e40af;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Product placeholder */
+
+.product-placeholder {
+  padding: 32px;
+  text-align: center;
+  background: #f1f5f9;
+  border: 2px dashed #94a3b8;
+  border-radius: 8px;
+}
+
+/* Footer */
+
+.site-footer {
+  padding: 20px;
+  background: #172554;
+  color: white;
+  text-align: center;
+}
+
+.site-footer p {
+  margin: 4px;
+}
+
+/* Keyboard accessibility */
+
+:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 3px;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 16px;
+  }
+
+  .hero {
+    padding: 28px 16px;
+  }
+
+  .countdown-section,
+  .products-section,
+  .checkout-section {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .brand {
+    font-size: 1.1rem;
+  }
+
+  .sale-badge {
+    padding: 6px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
