@@ -3,18 +3,19 @@ import { useEffect, useRef, useState } from "react";
 import { createAntiDriftTimer } from "../timer/anti-drift-timer";
 import "./CountdownTimer.css";
 
-// Default countdown: 60 seconds
 const SALE_DURATION_MS = 60_000;
 
 type CountdownPhase = "ready" | "counting" | "live";
 
+interface CountdownTimerProps {
+  onSaleStateChange?: (isLive: boolean) => void;
+}
+
 function formatTime(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
-
   const minutes = Math.floor(
     (totalSeconds % 3600) / 60
   );
-
   const seconds = totalSeconds % 60;
 
   return [hours, minutes, seconds]
@@ -22,7 +23,9 @@ function formatTime(totalSeconds: number): string {
     .join(":");
 }
 
-export default function CountdownTimer() {
+export default function CountdownTimer({
+  onSaleStateChange,
+}: CountdownTimerProps) {
   const [remainingSeconds, setRemainingSeconds] =
     useState(Math.ceil(SALE_DURATION_MS / 1000));
 
@@ -34,21 +37,24 @@ export default function CountdownTimer() {
   const isRunning = phase === "counting";
   const isLive = phase === "live";
 
-  // Start and manage the anti-drift timer
+  // Notify the parent when sale state changes
+  useEffect(() => {
+    onSaleStateChange?.(isLive);
+  }, [isLive, onSaleStateChange]);
+
+  // Start anti-drift countdown
   useEffect(() => {
     if (!isRunning) return;
 
     const cleanup = createAntiDriftTimer(
       SALE_DURATION_MS,
       (remainingMs) => {
-        // Update React only when the displayed second changes
         const seconds = Math.ceil(remainingMs / 1000);
 
         setRemainingSeconds((previous) =>
           previous === seconds ? previous : seconds
         );
 
-        // Countdown finished
         if (remainingMs === 0) {
           setPhase("live");
         }
@@ -57,7 +63,6 @@ export default function CountdownTimer() {
 
     cleanupRef.current = cleanup;
 
-    // Prevent memory leaks
     return () => {
       cleanup();
 
@@ -67,7 +72,6 @@ export default function CountdownTimer() {
     };
   }, [isRunning]);
 
-  // Start countdown
   const handleStart = () => {
     if (phase !== "ready") return;
 
@@ -78,7 +82,6 @@ export default function CountdownTimer() {
     setPhase("counting");
   };
 
-  // Reset countdown
   const handleReset = () => {
     cleanupRef.current?.();
     cleanupRef.current = null;
@@ -90,12 +93,11 @@ export default function CountdownTimer() {
     );
   };
 
-  // Accessible status message
   const statusMessage =
     phase === "ready"
       ? "Countdown ready. Press Start Countdown to begin."
       : phase === "counting"
-        ? "Countdown running. Flash sale starts when the timer reaches zero."
+        ? "Countdown running. Flash sale starts at zero."
         : "Countdown complete. Flash sale is now live.";
 
   return (
@@ -118,7 +120,6 @@ export default function CountdownTimer() {
         </span>
       </div>
 
-      {/* Accessible timer */}
       <div
         className="countdown-display"
         role="timer"
@@ -133,7 +134,6 @@ export default function CountdownTimer() {
         and requestAnimationFrame().
       </p>
 
-      {/* Keyboard-accessible controls */}
       <div
         className="countdown-controls"
         role="group"
@@ -157,7 +157,6 @@ export default function CountdownTimer() {
         </button>
       </div>
 
-      {/* Screen reader status */}
       <p
         className="countdown-message"
         role="status"
@@ -171,9 +170,8 @@ export default function CountdownTimer() {
           <strong>FLASH SALE IS LIVE!</strong>
 
           <p>
-            The countdown has finished.
-            Inventory and checkout features
-            will be available in the next tasks.
+            Inventory reservations are now open.
+            Products are available while stock lasts.
           </p>
         </div>
       )}

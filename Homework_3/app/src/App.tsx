@@ -1,17 +1,30 @@
 
-import "./App.css";
+import { useState } from "react";
+
 import CountdownTimer from "./components/CountdownTimer";
+import FlashSaleInventory from "./components/FlashSaleInventory";
+
+import "./App.css";
+
 function App() {
+  const [saleLive, setSaleLive] = useState(false);
+
   return (
     <div className="app">
       <header className="site-header">
         <div className="header-content">
-          <span className="brand">FLASH SALE VN</span>
-          <span className="sale-badge">11.11 MEGA SALE</span>
+          <span className="brand">
+            FLASH SALE VN
+          </span>
+
+          <span className="sale-badge">
+            11.11 MEGA SALE
+          </span>
         </div>
       </header>
 
       <main className="main-content">
+        {/* Hero */}
         <section
           className="hero"
           aria-labelledby="hero-title"
@@ -25,24 +38,28 @@ function App() {
           </h1>
 
           <p className="hero-description">
-            Experience a flash-sale simulation
-            powered by a precision countdown timer,
-            optimistic inventory reservations,
-            and a checkout state machine.
+            Flash sale simulation with
+            precision countdown,
+            optimistic inventory reservation,
+            and checkout state management.
           </p>
         </section>
 
+        {/* Countdown */}
         <section
-  className="countdown-section"
-  aria-labelledby="countdown-title"
->
-  <h2 id="countdown-title">
-    Flash Sale Countdown
-  </h2>
+          className="countdown-section"
+          aria-labelledby="countdown-title"
+        >
+          <h2 id="countdown-title">
+            Flash Sale Countdown
+          </h2>
 
-  <CountdownTimer />
-</section>
+          <CountdownTimer
+            onSaleStateChange={setSaleLive}
+          />
+        </section>
 
+        {/* Inventory */}
         <section
           className="products-section"
           aria-labelledby="products-title"
@@ -51,20 +68,13 @@ function App() {
             Flash Sale Products
           </h2>
 
-          <p>
-            Product inventory and reservation
-            functionality will be implemented
-            in T04–T05.
-          </p>
-
-          <div className="product-placeholder">
-            <h3>Product Catalog</h3>
-            <p>
-              Flash-sale products coming soon.
-            </p>
-          </div>
+          <FlashSaleInventory
+            key={saleLive ? "live" : "waiting"}
+            isSaleLive={saleLive}
+          />
         </section>
 
+        {/* Checkout */}
         <section
           className="checkout-section"
           aria-labelledby="checkout-title"
@@ -74,8 +84,8 @@ function App() {
           </h2>
 
           <p>
-            Secure checkout simulation and
-            inventory rollback will be
+            Checkout confirmation, cancellation,
+            and inventory rollback will be
             implemented in T06.
           </p>
         </section>
@@ -85,6 +95,7 @@ function App() {
         <p>
           Web Application Development – Homework 3
         </p>
+
         <p>
           React + TypeScript | WCAG 2.2 AA Target
         </p>
