@@ -1,0 +1,191 @@
+
+/* Main countdown widget */
+
+.countdown-widget {
+  width: 100%;
+  padding: 24px;
+  background: #f8fafc;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+}
+
+/* Header */
+
+.countdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.countdown-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #172554;
+  letter-spacing: 1px;
+}
+
+/* Sale status */
+
+.sale-status {
+  padding: 8px 14px;
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #1e40af;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.sale-status.sale-live {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #166534;
+}
+
+/* Timer display */
+
+.countdown-display {
+  width: 100%;
+  padding: 24px 12px;
+  background: #172554;
+  color: #ffffff;
+  border-radius: 12px;
+
+  font-family: "Courier New", monospace;
+  font-size: clamp(2rem, 7vw, 4.5rem);
+  font-weight: 800;
+
+  text-align: center;
+  line-height: 1.3;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Timer description */
+
+.countdown-description {
+  margin: 16px 0;
+  color: #334155;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+/* Countdown controls */
+
+.countdown-controls {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.countdown-controls button {
+  min-width: 160px;
+  min-height: 44px;
+  padding: 12px 20px;
+
+  border: 2px solid transparent;
+  border-radius: 8px;
+
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.start-button {
+  background: #166534;
+  color: #ffffff;
+}
+
+.start-button:hover:not(:disabled) {
+  background: #14532d;
+}
+
+.reset-button {
+  background: #1e3a8a;
+  color: #ffffff;
+}
+
+.reset-button:hover {
+  background: #172554;
+}
+
+/* Disabled button */
+
+.countdown-controls button:disabled {
+  background: #e2e8f0;
+  color: #334155;
+  border-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Visible keyboard focus */
+
+.countdown-controls button:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 4px;
+}
+
+/* Screen reader status */
+
+.countdown-message {
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Flash sale live message */
+
+.live-message {
+  margin-top: 24px;
+  padding: 20px;
+  background: #dcfce7;
+  border: 2px solid #166534;
+  border-radius: 8px;
+  color: #14532d;
+  text-align: center;
+}
+
+.live-message strong {
+  font-size: 1.25rem;
+}
+
+/* Responsive */
+
+@media (max-width: 600px) {
+  .countdown-widget {
+    padding: 16px;
+  }
+
+  .countdown-display {
+    padding: 20px 8px;
+    font-size: clamp(1.8rem, 9vw, 3rem);
+    letter-spacing: 1px;
+  }
+
+  .countdown-controls {
+    flex-direction: column;
+  }
+
+  .countdown-controls button {
+    width: 100%;
+  }
+}
+
+/* High contrast mode */
+
+@media (forced-colors: active) {
+  .countdown-display,
+  .countdown-controls button,
+  .sale-status {
+    border: 2px solid CanvasText;
+  }
+}

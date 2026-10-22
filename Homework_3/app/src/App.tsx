@@ -1,6 +1,6 @@
 
 import "./App.css";
-
+import CountdownTimer from "./components/CountdownTimer";
 function App() {
   return (
     <div className="app">
@@ -33,22 +33,15 @@ function App() {
         </section>
 
         <section
-          className="countdown-section"
-          aria-labelledby="countdown-title"
-        >
-          <h2 id="countdown-title">
-            Flash Sale Countdown
-          </h2>
+  className="countdown-section"
+  aria-labelledby="countdown-title"
+>
+  <h2 id="countdown-title">
+    Flash Sale Countdown
+  </h2>
 
-          <p>
-            The precision countdown engine
-            will be implemented in T02–T03.
-          </p>
-
-          <p className="info-message">
-            Countdown status: Not initialized
-          </p>
-        </section>
+  <CountdownTimer />
+</section>
 
         <section
           className="products-section"
