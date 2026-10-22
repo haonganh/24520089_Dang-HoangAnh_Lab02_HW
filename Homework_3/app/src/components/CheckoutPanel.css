@@ -1,0 +1,155 @@
+
+/* Checkout panel */
+
+.checkout-panel {
+  margin-top: 24px;
+  padding: 24px;
+  background: #ffffff;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+}
+
+.checkout-panel h3 {
+  margin-top: 0;
+  color: #172554;
+}
+
+.checkout-panel p {
+  color: #334155;
+  line-height: 1.6;
+}
+
+/* Empty state */
+
+.checkout-empty {
+  padding: 16px;
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+/* Reservation list */
+
+.checkout-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+  display: grid;
+  gap: 16px;
+}
+
+.checkout-card {
+  padding: 20px;
+  background: #f8fafc;
+  border: 2px solid #94a3b8;
+  border-radius: 8px;
+}
+
+.checkout-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.checkout-card-header strong {
+  color: #172554;
+  overflow-wrap: anywhere;
+}
+
+.checkout-badge {
+  padding: 6px 10px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  border: 1px solid #1e40af;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Checkout buttons */
+
+.checkout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.checkout-actions button {
+  min-height: 44px;
+  padding: 10px 16px;
+  background: #1e3a8a;
+  color: #ffffff;
+  border: 2px solid #1e3a8a;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.checkout-actions button:hover {
+  filter: brightness(0.85);
+}
+
+.checkout-actions .confirm-button {
+  background: #166534;
+  border-color: #166534;
+}
+
+.checkout-actions .failure-button {
+  background: #9a3412;
+  border-color: #9a3412;
+}
+
+.checkout-actions .cancel-button {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+/* Accessible keyboard focus */
+
+.checkout-actions button:focus-visible {
+  outline: 3px solid #b45309;
+  outline-offset: 4px;
+}
+
+/* Information */
+
+.checkout-note {
+  margin-top: 20px;
+  padding: 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+
+@media (max-width: 600px) {
+  .checkout-panel {
+    padding: 16px;
+  }
+
+  .checkout-card {
+    padding: 12px;
+  }
+
+  .checkout-actions {
+    flex-direction: column;
+  }
+
+  .checkout-actions button {
+    width: 100%;
+  }
+}
+
+/* High contrast support */
+
+@media (forced-colors: active) {
+  .checkout-card,
+  .checkout-actions button,
+  .checkout-badge {
+    border-color: CanvasText;
+  }
+}

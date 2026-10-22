@@ -24,7 +24,6 @@ function App() {
       </header>
 
       <main className="main-content">
-        {/* Hero */}
         <section
           className="hero"
           aria-labelledby="hero-title"
@@ -38,14 +37,12 @@ function App() {
           </h1>
 
           <p className="hero-description">
-            Flash sale simulation with
-            precision countdown,
-            optimistic inventory reservation,
+            Flash sale simulation with precision
+            countdown, inventory reservations,
             and checkout state management.
           </p>
         </section>
 
-        {/* Countdown */}
         <section
           className="countdown-section"
           aria-labelledby="countdown-title"
@@ -59,7 +56,6 @@ function App() {
           />
         </section>
 
-        {/* Inventory */}
         <section
           className="products-section"
           aria-labelledby="products-title"
@@ -72,22 +68,6 @@ function App() {
             key={saleLive ? "live" : "waiting"}
             isSaleLive={saleLive}
           />
-        </section>
-
-        {/* Checkout */}
-        <section
-          className="checkout-section"
-          aria-labelledby="checkout-title"
-        >
-          <h2 id="checkout-title">
-            Checkout
-          </h2>
-
-          <p>
-            Checkout confirmation, cancellation,
-            and inventory rollback will be
-            implemented in T06.
-          </p>
         </section>
       </main>
 
